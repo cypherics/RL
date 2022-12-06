@@ -11,7 +11,7 @@ from utils import env_reset, env_step, update, update_metrics, print_metrics
 def convert(x):
   return torch.tensor(x).float().unsqueeze(0)
 
-class CartpoleLinearSARSA:
+class CartpoleNonLinearQ:
   def __init__(self, alpha, eps, gamma, alpha_decay, eps_decay, max_train_iterations, max_test_iterations, max_episode_length):
     self.alpha = alpha
     self.eps = eps
@@ -76,7 +76,8 @@ class CartpoleLinearSARSA:
     # the effect of backpropagating through Q(s, a) and Q(s', a') at once!
 
     _q = torch.gather(self.model(state), dim=1, index=action.long())
-    _q_next = torch.gather(self.model(next_state), dim=1, index=next_action.long())
+    _q_next_1 = torch.gather(self.model(next_state), dim=1, index=next_action.long())
+    _q_next = torch.max(self.model(next_state))
 
     q_network_loss = self.criterion(_q, reward.detach() if done else (reward + (self.gamma * _q_next)).detach())
     return q_network_loss
@@ -130,7 +131,7 @@ class CartpoleLinearSARSA:
     plot_results(self.train_metrics, self.test_metrics)
 
 if __name__ == '__main__':
-  alg = CartpoleLinearSARSA(alpha=5e-3, eps=1, gamma=0.9, eps_decay=0.999, max_train_iterations=1000, alpha_decay=0.999,
-                            max_test_iterations=100, max_episode_length=200)
+  alg = CartpoleNonLinearQ(alpha=5e-3, eps=1, gamma=0.9, eps_decay=0.999, max_train_iterations=1000, alpha_decay=0.999,
+                           max_test_iterations=100, max_episode_length=200)
   alg.train()
   alg.test()

@@ -43,15 +43,15 @@ class CartpoleLinearSARSA:
     # - otherwise find the action that maximizes Q
     # - During the rollout phase, we don't need to compute the gradient!
     #   (Hint: use torch.no_grad()). The policy should return torch tensors.
-    if training:
-      p = self.model(convert(state))
-      if np.random.rand() > self.eps:
-        a = self.random_action()
-      else:
-        a = self.greedy_action(p).tolist()
+    with torch.no_grad():
+      if training:
+        p = self.model(convert(state))
+        if np.random.rand() > self.eps:
+          a = self.random_action()
+        else:
+          a = self.greedy_action(p).tolist()
 
-    else:
-      with torch.no_grad():
+      else:
         p = self.model(convert(state))
         a = self.greedy_action(p).tolist()
 
@@ -93,7 +93,7 @@ class CartpoleLinearSARSA:
     state = env_reset(self.env, False)
     action = self.policy(state, self.eps)
     for t in range(self.max_episode_length):
-      next_state, reward, done, _ = env_step(self.env, action.item(), False)
+      next_state, reward, done, _ = env_step(self.env, int(action.item()), False)
       episode_reward += reward
       next_action = self.policy(next_state, training)
 

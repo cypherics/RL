@@ -78,6 +78,8 @@ class CartpoleLinearSARSA:
     _q = torch.gather(self.model(state), dim=1, index=action.long())
     _q_next = torch.gather(self.model(next_state), dim=1, index=next_action.long())
 
+    if done:
+      print(f"Reward {reward}, Done {done}")
     q_network_loss = self.criterion(_q, reward.detach() if done else (reward + (self.gamma * _q_next)).detach())
     return q_network_loss
 
@@ -94,10 +96,10 @@ class CartpoleLinearSARSA:
 
   def run_episode(self, training):
     episode_reward, episode_loss = 0, 0.
-    state = env_reset(self.env, False)
+    state = env_reset(self.env, False if training else True)
     action = self.policy(state, self.eps)
     for t in range(self.max_episode_length):
-      next_state, reward, done, _ = env_step(self.env, int(action.item()), False)
+      next_state, reward, done, _ = env_step(self.env, int(action.item()), False if training else True)
       episode_reward += reward
       next_action = self.policy(next_state, training)
       if training:

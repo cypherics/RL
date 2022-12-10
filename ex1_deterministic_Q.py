@@ -27,7 +27,7 @@ class DeterministicSARSA:
     # - with probability eps return a random action
     # - otherwise find the action that maximizes Q
     rand = np.random.random()
-    if rand > self.eps:
+    if rand > self.eps or not is_training:
       return np.argmax(self.get_qs(state))
 
     return np.random.randint(0, self.num_actions)
@@ -118,7 +118,7 @@ def tune_alpha_eps(gamma=0.9):
   eps_range = np.linspace(0.0, 1.0, num=11)
 
   # TODO: Change `debugging` to `False` after finishing your implementation! Report the results averaged over 5 repetitions!
-  debugging = True
+  debugging = False
   if debugging:
     num_repetitions = 1
   else:
@@ -147,13 +147,13 @@ def tune_alpha_eps(gamma=0.9):
   plot_results(alpha_range, eps_range, 'alpha', 'epsilon', train_results, test_results)
 
 
-def tune_alpha_gamma(eps=0.1):
+def tune_alpha_gamma(eps=0.5):
   # TODO Create suitable parameter ranges (np.arange)
   alpha_range = np.linspace(0.0, 1.0, num=11)
   gamma_range = np.linspace(0.0, 1.0, num=11)
 
   # TODO: Change `debugging` to `False` after finishing your implementation! Report the results averaged over 5 repetitions!
-  debugging = True
+  debugging = False
   if debugging:
     num_repetitions = 1
   else:
@@ -183,4 +183,4 @@ def tune_alpha_gamma(eps=0.1):
 
 if __name__ == '__main__':
   tune_alpha_eps(gamma=0.9)
-  tune_alpha_gamma(eps=0.1)
+  tune_alpha_gamma(eps=0.5)

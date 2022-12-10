@@ -28,7 +28,7 @@ class DeterministicSARSA:
     # - with probability eps return a random action
     # - otherwise find the action that maximizes Q
 
-    if np.random.random() > self.eps:
+    if np.random.random() > self.eps or not is_training:
       return np.argmax(self.get_qs(state))
 
     return np.random.randint(0, self.num_actions)
@@ -125,7 +125,7 @@ def tune_alpha_eps(gamma=0.9):
   eps_range = np.linspace(0.0, 1.0, num=11)
 
   # TODO: Change `debugging` to `False` after finishing your implementation! Report the results averaged over 5 repetitions!
-  debugging = True
+  debugging = False
   if debugging:
     num_repetitions = 1
   else:
@@ -143,7 +143,6 @@ def tune_alpha_eps(gamma=0.9):
         alg.train()
         alg.test()
 
-        print(np.mean(alg.train_reward))
         train_results[i, j, k] = np.mean(alg.train_reward)
         test_results[i, j, k] = alg.test_reward
       print('.', end='')
@@ -151,7 +150,6 @@ def tune_alpha_eps(gamma=0.9):
 
   find_and_param_combinations(alpha_range, eps_range, test_results)
   # TODO: Find and print the top-3 parameter combinations, that perform best during the test phase
-  print('TODO')
 
   plot_results(alpha_range, eps_range, 'alpha', 'epsilon', train_results, test_results)
 
@@ -162,7 +160,7 @@ def tune_alpha_gamma(eps=0.1):
   gamma_range = np.linspace(0.0, 1.0, num=11)
 
   # TODO: Change `debugging` to `False` after finishing your implementation! Report the results averaged over 5 repetitions!
-  debugging = True
+  debugging = False
   if debugging:
     num_repetitions = 1
   else:

@@ -25,8 +25,12 @@ class CartpoleLinearSARSA:
     self.env = gym.make("CartPole-v0")
     self.num_actions = self.env.action_space.n
     self.num_observations = self.env.observation_space.shape[0]
+
+    self.hidden = 20
     self.model = nn.Sequential(
-      nn.Linear(self.num_observations, self.num_actions),
+      nn.Linear(self.num_observations, self.hidden),
+      nn.Tanh(),
+      nn.Linear(self.hidden, self.num_actions)
     )
     self.criterion = nn.MSELoss()
     self.optimizer = optim.Adam(self.model.parameters(), lr=self.alpha)
@@ -71,10 +75,12 @@ class CartpoleLinearSARSA:
     # Detach the gradient of Q(s', a'). Why do we have to do that? Think about
     # the effect of backpropagating through Q(s, a) and Q(s', a') at once!
 
-    eval_q = torch.gather(self.model(state), dim=1, index=action.long())
-    target_q = torch.gather(self.model(next_state), dim=1, index=next_action.long())
+    _q = torch.gather(self.model(state), dim=1, index=action.long())
+    _q_next = torch.gather(self.model(next_state), dim=1, index=next_action.long())
 
-    q_network_loss = self.criterion(eval_q, reward.detach() if done else (reward + (self.gamma * target_q)).detach())
+    if done:
+      print(f"Reward {reward}, Done {done}")
+    q_network_loss = self.criterion(_q, reward.detach() if done else (reward + (self.gamma * _q_next)).detach())
     return q_network_loss
 
   def train_step(self, state, action, reward, next_state, next_action, done):
@@ -90,13 +96,12 @@ class CartpoleLinearSARSA:
 
   def run_episode(self, training):
     episode_reward, episode_loss = 0, 0.
-    state = env_reset(self.env, False)
+    state = env_reset(self.env, False if training else True)
     action = self.policy(state, self.eps)
     for t in range(self.max_episode_length):
-      next_state, reward, done, _ = env_step(self.env, int(action.item()), False)
+      next_state, reward, done, _ = env_step(self.env, int(action.item()), False if training else True)
       episode_reward += reward
       next_action = self.policy(next_state, training)
-
       if training:
         episode_loss += self.train_step(state, action, reward, next_state, next_action, done)
       else:
@@ -119,14 +124,15 @@ class CartpoleLinearSARSA:
 
   def test(self):
     self.test_metrics = dict(reward=[], loss=[])
-    for it in range(self.max_test_iterations):
-      episode_metrics = self.run_episode(training=False)
-      update_metrics(self.test_metrics, episode_metrics)
+    with torch.no_grad():
+      for it in range(self.max_test_iterations):
+        episode_metrics = self.run_episode(training=False)
+        update_metrics(self.test_metrics, episode_metrics)
     print_metrics(it + 1, self.test_metrics, training=False)
     plot_results(self.train_metrics, self.test_metrics)
 
 if __name__ == '__main__':
-  alg = CartpoleLinearSARSA(alpha=1e-3, eps=1, gamma=0.9, eps_decay=0.999, max_train_iterations=1000, alpha_decay=0.999,
+  alg = CartpoleLinearSARSA(alpha=5e-3, eps=1, gamma=0.9, eps_decay=0.999, max_train_iterations=1000, alpha_decay=0.999,
                             max_test_iterations=100, max_episode_length=200)
   alg.train()
   alg.test()

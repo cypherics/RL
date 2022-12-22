@@ -1,8 +1,9 @@
+import math
+
 import gym
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
 from cartpole_utils import plot_results
@@ -13,7 +14,7 @@ def convert(x):
     return torch.tensor(x).float().unsqueeze(0)
 
 
-class CartpoleLinearSARSA:
+class CartpoleNonLinearQ:
     def __init__(
         self,
         alpha,
@@ -34,14 +35,18 @@ class CartpoleLinearSARSA:
         self.max_test_iterations = max_test_iterations
         self.max_episode_length = max_episode_length
 
-        self.env = gym.make("CartPole-v0")
+        # self.env = gym.make("CartPole-v0")
+        self.env = gym.make("MountainCar-v0")
+
         self.num_actions = self.env.action_space.n
         self.num_observations = self.env.observation_space.shape[0]
 
-        self.hidden = 20
+        self.hidden = 32
         self.model = nn.Sequential(
             nn.Linear(self.num_observations, self.hidden),
-            nn.Tanh(),
+            nn.ReLU(),
+            nn.Linear(self.hidden, self.hidden),
+            nn.ReLU(),
             nn.Linear(self.hidden, self.num_actions),
         )
         self.criterion = nn.MSELoss()
@@ -77,7 +82,6 @@ class CartpoleLinearSARSA:
         state = convert(state)
         next_state = convert(next_state)
         action = action.view(1, 1)
-        next_action = next_action.view(1, 1)
         reward = torch.tensor(reward).view(1, 1)
         done = torch.tensor(done).int().view(1, 1)
 
@@ -86,11 +90,15 @@ class CartpoleLinearSARSA:
         # the effect of backpropagating through Q(s, a) and Q(s', a') at once!
 
         _q = torch.gather(self.model(state), dim=1, index=action.long())
-        _q_next = torch.gather(self.model(next_state), dim=1, index=next_action.long())
-
-        q_network_loss = self.criterion(
-            _q, reward.detach() if done else (reward + (self.gamma * _q_next)).detach()
+        _q_next = (
+            reward.detach()
+            if done
+            else (
+                reward + (self.gamma * torch.max(self.model(next_state).detach()))
+            ).detach()
         )
+
+        q_network_loss = self.criterion(_q, _q_next)
         return q_network_loss
 
     def train_step(self, state, action, reward, next_state, next_action, done):
@@ -107,11 +115,13 @@ class CartpoleLinearSARSA:
     def run_episode(self, training):
         episode_reward, episode_loss = 0, 0.0
         state = env_reset(self.env, False)
-        action = self.policy(state, self.eps)
         for t in range(self.max_episode_length):
+            action = self.policy(state, self.eps)
             next_state, reward, done, _ = env_step(self.env, int(action.item()), False)
+            next_action = None
             episode_reward += reward
-            next_action = self.policy(next_state, training)
+            reward = float(reward + (10 * abs(next_state[1])))
+
             if training:
                 episode_loss += self.train_step(
                     state, action, reward, next_state, next_action, done
@@ -122,7 +132,9 @@ class CartpoleLinearSARSA:
                         state, action, reward, next_state, next_action, done
                     ).item()
 
-            state, action = next_state, next_action
+            state = next_state
+            if state[0] >= 0.5:
+                print(f"CAR REACHED GOAL IN {t} episodes")
             if done:
                 break
         return dict(reward=episode_reward, loss=episode_loss / t)
@@ -147,15 +159,15 @@ class CartpoleLinearSARSA:
 
 
 if __name__ == "__main__":
-    alg = CartpoleLinearSARSA(
-        alpha=1e-3,
+    alg = CartpoleNonLinearQ(
+        alpha=1e-03,
         eps=1,
         gamma=0.9,
         eps_decay=0.999,
-        max_train_iterations=1000,
+        max_train_iterations=15000,
         alpha_decay=0.999,
-        max_test_iterations=100,
-        max_episode_length=1000,
+        max_test_iterations=500,
+        max_episode_length=5000,
     )
     alg.train()
     alg.test()

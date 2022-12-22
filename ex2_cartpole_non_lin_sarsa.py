@@ -50,7 +50,7 @@ class CartpoleLinearSARSA:
     with torch.no_grad():
       if training:
         p = self.model(convert(state))
-        if np.random.rand() > self.eps:
+        if np.random.rand() < self.eps:
           a = self.random_action()
         else:
           a = self.greedy_action(p).tolist()
@@ -130,7 +130,7 @@ class CartpoleLinearSARSA:
     plot_results(self.train_metrics, self.test_metrics)
 
 if __name__ == '__main__':
-  alg = CartpoleLinearSARSA(alpha=1e-1, eps=1, gamma=0.9, eps_decay=0.999, max_train_iterations=1000, alpha_decay=0.999,
-                            max_test_iterations=100, max_episode_length=200)
+  alg = CartpoleLinearSARSA(alpha=1e-3, eps=1, gamma=0.9, eps_decay=0.999, max_train_iterations=1000, alpha_decay=0.999,
+                            max_test_iterations=100, max_episode_length=1000)
   alg.train()
   alg.test()

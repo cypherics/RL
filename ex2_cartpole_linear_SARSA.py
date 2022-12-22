@@ -46,7 +46,7 @@ class CartpoleLinearSARSA:
     with torch.no_grad():
       if training:
         p = self.model(convert(state))
-        if np.random.rand() > self.eps:
+        if np.random.rand() < self.eps:
           a = self.random_action()
         else:
           a = self.greedy_action(p).tolist()
